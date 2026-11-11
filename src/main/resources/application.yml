@@ -1,0 +1,18 @@
+spring:
+  application:
+    name: media-portal
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/media_portal}
+    username: ${DB_USER:media}
+    password: ${DB_PASSWORD:media}
+  jackson:
+    deserialization:
+      accept-float-as-int: false
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+server:
+  port: 8080
