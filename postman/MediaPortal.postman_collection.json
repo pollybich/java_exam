@@ -170,6 +170,70 @@
           ]
         },
         {
+          "name": "Добавить просмотр",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/popular/articles/{{articleId}}/views",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "popular",
+                "articles",
+                "{{articleId}}",
+                "views"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Получить топ",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/popular",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "popular"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Материал есть в топе\", function () {",
+                  "  const item = pm.response.json().find(item => item.type === \"articles\" && item.id === Number(pm.collectionVariables.get(\"articleId\")));",
+                  "  pm.expect(item).to.exist;",
+                  "  pm.expect(item.views).to.eql(1);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Удалить",
           "request": {
             "method": "DELETE",
@@ -193,6 +257,35 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Проверить удаление",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/articles/{{articleId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "articles",
+                "{{articleId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", function () { pm.response.to.have.status(404); });"
                 ]
               }
             }
@@ -347,6 +440,70 @@
           ]
         },
         {
+          "name": "Добавить просмотр",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/popular/videos/{{videoId}}/views",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "popular",
+                "videos",
+                "{{videoId}}",
+                "views"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Получить топ",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/popular",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "popular"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Материал есть в топе\", function () {",
+                  "  const item = pm.response.json().find(item => item.type === \"videos\" && item.id === Number(pm.collectionVariables.get(\"videoId\")));",
+                  "  pm.expect(item).to.exist;",
+                  "  pm.expect(item.views).to.eql(1);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Удалить",
           "request": {
             "method": "DELETE",
@@ -370,6 +527,35 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Проверить удаление",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/videos/{{videoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "videos",
+                "{{videoId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", function () { pm.response.to.have.status(404); });"
                 ]
               }
             }
@@ -524,6 +710,70 @@
           ]
         },
         {
+          "name": "Добавить просмотр",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/popular/podcasts/{{podcastId}}/views",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "popular",
+                "podcasts",
+                "{{podcastId}}",
+                "views"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Получить топ",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/popular",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "popular"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Материал есть в топе\", function () {",
+                  "  const item = pm.response.json().find(item => item.type === \"podcasts\" && item.id === Number(pm.collectionVariables.get(\"podcastId\")));",
+                  "  pm.expect(item).to.exist;",
+                  "  pm.expect(item.views).to.eql(1);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Удалить",
           "request": {
             "method": "DELETE",
@@ -547,6 +797,35 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Проверить удаление",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/podcasts/{{podcastId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "podcasts",
+                "{{podcastId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", function () { pm.response.to.have.status(404); });"
                 ]
               }
             }

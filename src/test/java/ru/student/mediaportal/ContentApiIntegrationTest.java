@@ -14,13 +14,22 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.cache.CacheManager;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import java.util.stream.Stream;
 import java.util.List;
 import java.util.Map;
+import java.time.Clock;
+import java.time.Instant;
+import static org.mockito.Mockito.when;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -33,12 +42,28 @@ class ContentApiIntegrationTest {
     @ServiceConnection
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:17-alpine");
 
+    @Container
+    static GenericContainer<?> redisContainer = new GenericContainer<>("redis:7-alpine").withExposedPorts(6379);
+
+    @DynamicPropertySource
+    static void redisProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.data.redis.host", redisContainer::getHost);
+        registry.add("spring.data.redis.port", () -> redisContainer.getMappedPort(6379));
+    }
+
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper mapper;
     @Autowired JdbcTemplate jdbc;
+    @Autowired CacheManager caches;
+    @Autowired StringRedisTemplate redis;
+    @MockitoBean Clock clock;
 
     @BeforeEach
     void cleanDatabase() {
+        when(clock.instant()).thenReturn(Instant.parse("2026-01-01T10:30:00Z"));
+        try (var connection = redis.getConnectionFactory().getConnection()) {
+            connection.serverCommands().flushDb();
+        }
         jdbc.execute("TRUNCATE articles, videos, podcasts, episodes RESTART IDENTITY CASCADE");
     }
 
@@ -67,7 +92,10 @@ class ContentApiIntegrationTest {
         mvc.perform(put(itemUrl).contentType(MediaType.APPLICATION_JSON).content(updated.toString()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.title").value("Изменено"));
         mvc.perform(get(itemUrl)).andExpect(jsonPath("$.title").value("Изменено"));
+        mvc.perform(post("/api/popular/" + type + "/" + entity.get("id").asLong() + "/views"))
+                .andExpect(status().isNoContent());
         mvc.perform(delete(itemUrl)).andExpect(status().isNoContent()).andExpect(content().string(""));
+        mvc.perform(get("/api/popular")).andExpect(content().json("[]"));
         mvc.perform(get(itemUrl)).andExpect(status().isNotFound()).andExpect(jsonPath("$.status").value(404));
         mvc.perform(put(itemUrl).contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isNotFound());
         mvc.perform(delete(itemUrl)).andExpect(status().isNotFound());
@@ -154,7 +182,100 @@ class ContentApiIntegrationTest {
         mvc.perform(get("/v3/api-docs")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.paths['/api/articles'].post").exists())
                 .andExpect(jsonPath("$.paths['/api/videos/{id}'].put").exists())
-                .andExpect(jsonPath("$.paths['/api/podcasts/{id}'].delete").exists());
+                .andExpect(jsonPath("$.paths['/api/podcasts/{id}'].delete").exists())
+                .andExpect(jsonPath("$.paths['/api/popular'].get").exists())
+                .andExpect(jsonPath("$.paths['/api/popular/{type}/{id}/views'].post.responses['204']").exists());
+        for (String type : List.of("articles", "videos", "podcasts")) {
+            mvc.perform(get("/v3/api-docs"))
+                    .andExpect(jsonPath("$.paths['/api/" + type + "'].post.responses['201']").exists())
+                    .andExpect(jsonPath("$.paths['/api/" + type + "/{id}'].delete.responses['204']").exists());
+        }
         mvc.perform(get("/swagger-ui/index.html")).andExpect(status().isOk());
+    }
+
+    @ParameterizedTest
+    @MethodSource("contentCases")
+    void cachesContentAndEvictsAfterChanges(String type, String body) throws Exception {
+        String created = mvc.perform(post("/api/" + type).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        long id = mapper.readTree(created).get("id").asLong();
+        String url = "/api/" + type + "/" + id;
+        mvc.perform(get(url)).andExpect(content().json(created));
+        assertNotNull(caches.getCache(type).get(id));
+        assertTrue(redis.getExpire(type + "::" + id) > 0);
+        jdbc.update("UPDATE " + type + " SET title = ? WHERE id = ?", "Изменено в базе", id);
+        mvc.perform(get(url)).andExpect(content().json(created));
+
+        var updated = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree(body);
+        updated.put("title", "После обновления");
+        mvc.perform(put(url).contentType(MediaType.APPLICATION_JSON).content(updated.toString()))
+                .andExpect(status().isOk());
+        assertNull(caches.getCache(type).get(id));
+        mvc.perform(get(url)).andExpect(jsonPath("$.title").value("После обновления"));
+        mvc.perform(delete(url)).andExpect(status().isNoContent());
+        assertNull(caches.getCache(type).get(id));
+        mvc.perform(get(url)).andExpect(status().isNotFound());
+        assertNull(caches.getCache(type).get(id));
+    }
+
+    @Test
+    void countsTypesSeparatelyAndStartsNewHour() throws Exception {
+        int views = 0;
+        for (Arguments args : contentCases().toList()) {
+            String type = (String) args.get()[0];
+            String body = (String) args.get()[1];
+            mvc.perform(post("/api/" + type).contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isCreated());
+            for (int i = 0; i <= views; i++) {
+                mvc.perform(post("/api/popular/" + type + "/1/views")).andExpect(status().isNoContent());
+            }
+            views++;
+        }
+        mvc.perform(get("/api/popular")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[0].type").value("podcasts"))
+                .andExpect(jsonPath("$[0].views").value(3))
+                .andExpect(jsonPath("$[1].type").value("videos"))
+                .andExpect(jsonPath("$[1].views").value(2))
+                .andExpect(jsonPath("$[2].type").value("articles"));
+        String key = "popular:" + Instant.parse("2026-01-01T10:00:00Z").getEpochSecond();
+        assertTrue(redis.getExpire(key) > 0 && redis.getExpire(key) <= 7200);
+
+        when(clock.instant()).thenReturn(Instant.parse("2026-01-01T11:00:00Z"));
+        mvc.perform(get("/api/popular")).andExpect(content().json("[]"));
+        mvc.perform(post("/api/popular/articles/1/views")).andExpect(status().isNoContent());
+        mvc.perform(get("/api/popular")).andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].views").value(1));
+    }
+
+    @Test
+    void returnsOnlyTenMostViewedItems() throws Exception {
+        for (int i = 1; i <= 12; i++) {
+            String body = mapper.writeValueAsString(Map.of("title", "Видео " + i,
+                    "url", "https://example.com/" + i, "duration", 60));
+            mvc.perform(post("/api/videos").contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isCreated());
+            for (int j = 0; j < i; j++) {
+                mvc.perform(post("/api/popular/videos/" + i + "/views")).andExpect(status().isNoContent());
+            }
+        }
+        mvc.perform(get("/api/popular")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(10))
+                .andExpect(jsonPath("$[0].id").value(12))
+                .andExpect(jsonPath("$[0].views").value(12))
+                .andExpect(jsonPath("$[9].id").value(3));
+    }
+
+    @Test
+    void rejectsViewsForMissingContentAndUnknownType() throws Exception {
+        for (String type : List.of("articles", "videos", "podcasts")) {
+            mvc.perform(post("/api/popular/" + type + "/99/views"))
+                    .andExpect(status().isNotFound()).andExpect(jsonPath("$.status").value(404));
+        }
+        mvc.perform(post("/api/popular/other/1/views"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.status").value(400));
+        mvc.perform(post("/api/popular/videos/abc/views"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.status").value(400));
+        mvc.perform(get("/api/popular")).andExpect(content().json("[]"));
     }
 }

@@ -1,6 +1,8 @@
 package ru.student.mediaportal.service;
 
 import org.springframework.data.domain.Sort;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.student.mediaportal.dto.*;
@@ -13,15 +15,18 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class VideoService {
     private final VideoRepository repository;
+    private final PopularityService popularity;
 
-    public VideoService(VideoRepository repository) {
+    public VideoService(VideoRepository repository, PopularityService popularity) {
         this.repository = repository;
+        this.popularity = popularity;
     }
 
     public List<VideoResponse> findAll() {
         return repository.findAll(Sort.by("id")).stream().map(this::toResponse).toList();
     }
 
+    @Cacheable(cacheNames = "videos", key = "#id")
     public VideoResponse findById(Long id) {
         return toResponse(getEntity(id));
     }
@@ -34,6 +39,7 @@ public class VideoService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = "videos", key = "#id")
     public VideoResponse update(Long id, VideoRequest request) {
         Video entity = getEntity(id);
         fill(entity, request);
@@ -41,8 +47,10 @@ public class VideoService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = "videos", key = "#id")
     public void delete(Long id) {
         repository.delete(getEntity(id));
+        popularity.remove("videos", id);
     }
 
     private Video getEntity(Long id) {

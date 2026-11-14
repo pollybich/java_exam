@@ -17,6 +17,7 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class PodcastServiceTest {
     @Mock private PodcastRepository repository;
+    @Mock private PopularityService popularity;
     @InjectMocks private PodcastService service;
     private final PodcastRequest request = new PodcastRequest("Подкаст", List.of(new EpisodeRequest(1, "Эпизод", "https://example.com/1.mp3", 600)));
 
@@ -58,6 +59,7 @@ class PodcastServiceTest {
         when(repository.findById(1L)).thenReturn(Optional.of(entity));
         service.delete(1L);
         verify(repository).delete(entity);
+        verify(popularity).remove("podcasts", 1L);
     }
 
     @Test

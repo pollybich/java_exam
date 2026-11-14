@@ -1,6 +1,8 @@
 package ru.student.mediaportal.service;
 
 import org.springframework.data.domain.Sort;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.student.mediaportal.dto.*;
@@ -13,15 +15,18 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class ArticleService {
     private final ArticleRepository repository;
+    private final PopularityService popularity;
 
-    public ArticleService(ArticleRepository repository) {
+    public ArticleService(ArticleRepository repository, PopularityService popularity) {
         this.repository = repository;
+        this.popularity = popularity;
     }
 
     public List<ArticleResponse> findAll() {
         return repository.findAll(Sort.by("id")).stream().map(this::toResponse).toList();
     }
 
+    @Cacheable(cacheNames = "articles", key = "#id")
     public ArticleResponse findById(Long id) {
         return toResponse(getEntity(id));
     }
@@ -34,6 +39,7 @@ public class ArticleService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = "articles", key = "#id")
     public ArticleResponse update(Long id, ArticleRequest request) {
         Article entity = getEntity(id);
         fill(entity, request);
@@ -41,8 +47,10 @@ public class ArticleService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = "articles", key = "#id")
     public void delete(Long id) {
         repository.delete(getEntity(id));
+        popularity.remove("articles", id);
     }
 
     private Article getEntity(Long id) {

@@ -1,6 +1,8 @@
 package ru.student.mediaportal.service;
 
 import org.springframework.data.domain.Sort;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.student.mediaportal.dto.*;
@@ -13,15 +15,18 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class PodcastService {
     private final PodcastRepository repository;
+    private final PopularityService popularity;
 
-    public PodcastService(PodcastRepository repository) {
+    public PodcastService(PodcastRepository repository, PopularityService popularity) {
         this.repository = repository;
+        this.popularity = popularity;
     }
 
     public List<PodcastResponse> findAll() {
         return repository.findAll(Sort.by("id")).stream().map(this::toResponse).toList();
     }
 
+    @Cacheable(cacheNames = "podcasts", key = "#id")
     public PodcastResponse findById(Long id) {
         return toResponse(getEntity(id));
     }
@@ -34,6 +39,7 @@ public class PodcastService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = "podcasts", key = "#id")
     public PodcastResponse update(Long id, PodcastRequest request) {
         Podcast entity = getEntity(id);
         // Удаляем прежние эпизоды до вставки новых с теми же номерами.
@@ -44,8 +50,10 @@ public class PodcastService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = "podcasts", key = "#id")
     public void delete(Long id) {
         repository.delete(getEntity(id));
+        popularity.remove("podcasts", id);
     }
 
     private Podcast getEntity(Long id) {

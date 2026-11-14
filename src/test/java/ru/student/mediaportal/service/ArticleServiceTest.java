@@ -17,6 +17,7 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class ArticleServiceTest {
     @Mock private ArticleRepository repository;
+    @Mock private PopularityService popularity;
     @InjectMocks private ArticleService service;
     private final ArticleRequest request = new ArticleRequest("Статья", "Текст", "Иван", LocalDate.of(2026, 1, 1));
 
@@ -50,6 +51,7 @@ class ArticleServiceTest {
         when(repository.findById(1L)).thenReturn(Optional.of(entity));
         service.delete(1L);
         verify(repository).delete(entity);
+        verify(popularity).remove("articles", 1L);
     }
 
     @Test

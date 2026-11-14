@@ -3,6 +3,7 @@ package ru.student.mediaportal.controller;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import ru.student.mediaportal.dto.VideoRequest;
 import ru.student.mediaportal.dto.VideoResponse;
@@ -27,6 +28,7 @@ public class VideoController {
     public VideoResponse findById(@PathVariable Long id) { return service.findById(id); }
 
     @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
     public ResponseEntity<VideoResponse> create(@Valid @RequestBody VideoRequest request) {
         VideoResponse response = service.create(request);
         return ResponseEntity.created(URI.create("/api/videos/" + response.id())).body(response);
@@ -38,6 +40,7 @@ public class VideoController {
     }
 
     @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         service.delete(id);
         return ResponseEntity.noContent().build();

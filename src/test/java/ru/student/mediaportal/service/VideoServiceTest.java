@@ -16,6 +16,7 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class VideoServiceTest {
     @Mock private VideoRepository repository;
+    @Mock private PopularityService popularity;
     @InjectMocks private VideoService service;
     private final VideoRequest request = new VideoRequest("Видео", "https://example.com/video.mp4", 60);
 
@@ -49,6 +50,7 @@ class VideoServiceTest {
         when(repository.findById(1L)).thenReturn(Optional.of(entity));
         service.delete(1L);
         verify(repository).delete(entity);
+        verify(popularity).remove("videos", 1L);
     }
 
     @Test

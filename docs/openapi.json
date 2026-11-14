@@ -97,8 +97,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK"
+          "204": {
+            "description": "No Content"
           }
         }
       }
@@ -189,8 +189,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK"
+          "204": {
+            "description": "No Content"
           }
         }
       }
@@ -281,8 +281,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK"
+          "204": {
+            "description": "No Content"
           }
         }
       }
@@ -325,8 +325,8 @@
           "required": true
         },
         "responses": {
-          "200": {
-            "description": "OK",
+          "201": {
+            "description": "Created",
             "content": {
               "*/*": {
                 "schema": {
@@ -334,6 +334,38 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/popular/{type}/{id}/views": {
+      "post": {
+        "tags": [
+          "Популярный контент"
+        ],
+        "operationId": "recordView",
+        "parameters": [
+          {
+            "name": "type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
           }
         }
       }
@@ -376,8 +408,8 @@
           "required": true
         },
         "responses": {
-          "200": {
-            "description": "OK",
+          "201": {
+            "description": "Created",
             "content": {
               "*/*": {
                 "schema": {
@@ -427,12 +459,35 @@
           "required": true
         },
         "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArticleResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/popular": {
+      "get": {
+        "tags": [
+          "Популярный контент"
+        ],
+        "operationId": "top",
+        "responses": {
           "200": {
             "description": "OK",
             "content": {
               "*/*": {
                 "schema": {
-                  "$ref": "#/components/schemas/ArticleResponse"
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PopularContentResponse"
+                  }
                 }
               }
             }
@@ -620,6 +675,22 @@
           "publicationDate": {
             "type": "string",
             "format": "date"
+          }
+        }
+      },
+      "PopularContentResponse": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "views": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       }
